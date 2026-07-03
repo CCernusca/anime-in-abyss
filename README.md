@@ -12,6 +12,10 @@ A little webapp that computes a measure of how niche an anime is and visualizes 
 
 ## Usage
 
+Use the [deployed webapp](https://ccernusca.github.io/anime-in-abyss/)
+
+Or:
+
 1. Open `index.html` in a browser (no build step or server required; requires internet access to reach AniList).
 2. Type an anime title into the search box.
 3. Press **Descend** (or hit Enter) to see its niche score — the page will auto-scroll to your anime's spot on the Abyss map, marked with a dot.
