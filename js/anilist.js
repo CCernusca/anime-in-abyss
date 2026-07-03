@@ -16,6 +16,29 @@ const TOP_ANIME_QUERY = `
   }
 `;
 
+const ANIME_BY_TITLE_QUERY = `
+  query ($search: String) {
+    Media(search: $search, type: ANIME) {
+      id
+      title { romaji }
+      tags { name rank }
+    }
+  }
+`;
+
+async function fetchAnimeByTitle(title) {
+  const res = await fetch(ANILIST_ENDPOINT, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify({ query: ANIME_BY_TITLE_QUERY, variables: { search: title } }),
+  });
+  // AniList responds 404 (rather than 200 + null) when the Media query finds no match
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(`AniList request failed: ${res.status}`);
+  const { data } = await res.json();
+  return data.Media;
+}
+
 async function fetchTopAnime() {
   const pageCount = Math.ceil(TOP_N / PER_PAGE);
   const pages = await Promise.all(
@@ -97,4 +120,4 @@ async function getJudgementData() {
   return tags;
 }
 
-window.AniList = { getJudgementData };
+window.AniList = { getJudgementData, fetchAnimeByTitle };

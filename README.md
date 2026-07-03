@@ -4,19 +4,19 @@ A little webapp that computes a measure of how niche an anime is and visualizes 
 
 ## Features
 
-- Search for any anime by title
-- Get a "niche score" for it
-- See the result mapped to an Abyss layer
-- **Judgement Details** — click the **Details** button (top-right) to see how the judging works: the app pulls the top 100 most popular anime from AniList and breaks down every tag they carry into a "mainstream score" (how common the tag is, weighted by how strongly the community says it applies), shown in a table with an explanation of what each column means.
-
-*(Niche-score calculation for the searched anime is a work in progress — see [ARCHITECTURE.md](ARCHITECTURE.md) for status.)*
+- Search for any anime by title (fetched live from AniList) and get a **niche score** for it — the more its tags are common/mainstream among the top 100 most popular anime, the higher the score.
+- If no matching anime is found on AniList, you'll get a clear error instead of a broken result.
+- Expand **Show tag breakdown** below the score to see exactly which of the anime's tags contributed, and how much each one added.
+- See the result mapped to an Abyss layer *(not yet implemented — coming soon)*.
+- **Judgement Details** — click the **Details** button (top-right) to see how the judging works generally: the app pulls the top 100 most popular anime from AniList and breaks down every tag they carry into a "mainstream score" (how common the tag is, weighted by how strongly the community says it applies), shown in a table with an explanation of what each column means.
 
 ## Usage
 
-1. Open `index.html` in a browser (no build step or server required).
+1. Open `index.html` in a browser (no build step or server required; requires internet access to reach AniList).
 2. Type an anime title into the search box.
-3. Press **Descend** (or hit Enter) to see the result.
-4. Click **Details** (top-right) to see the tag-weighting explanation and data behind the judging (requires internet access to reach AniList).
+3. Press **Descend** (or hit Enter) to see its niche score.
+4. Click **Show tag breakdown** to see which tags drove that score.
+5. Click **Details** (top-right) to see the general tag-weighting explanation and data behind the judging.
 
 ## Contributing
 

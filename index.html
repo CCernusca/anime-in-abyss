@@ -23,6 +23,19 @@
       <h2 id="result-title"></h2>
       <p id="result-score"></p>
       <p id="result-layer"></p>
+      <p id="result-error" hidden></p>
+      <button id="contributions-btn" hidden>Show tag breakdown</button>
+      <table id="contributions-table" class="data-table" hidden>
+        <thead>
+          <tr>
+            <th>Tag</th>
+            <th>Weight</th>
+            <th>Acceptance</th>
+            <th>Contribution</th>
+          </tr>
+        </thead>
+        <tbody id="contributions-table-body"></tbody>
+      </table>
     </section>
 
     <section id="judgement-details" hidden>
@@ -37,7 +50,7 @@
         candidate niche indicators.
       </p>
       <p id="judgement-status">Loading tag data...</p>
-      <table id="tag-table" hidden>
+      <table id="tag-table" class="data-table" hidden>
         <thead>
           <tr>
             <th>Tag</th>

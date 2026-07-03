@@ -18,14 +18,23 @@ assets/          Static images/media (currently empty)
 
 ## Current behavior
 
-### Search (placeholder)
+### Search & niche score
 
-`js/main.js` wires the search input and "Descend" button to a `handleSearch()` function. On submit (click or Enter key), it currently renders placeholder text into the `#result` section — the niche-scoring logic itself is not yet implemented.
+`js/main.js` wires the search input and "Descend" button to an async `handleSearch()`. On submit (click or Enter key):
+
+1. Fetches the searched title via `AniList.fetchAnimeByTitle(title)` (in `js/anilist.js`), in parallel with the (already in-flight, cached-after-first-load) judgement-data promise.
+2. If AniList has no match, `fetchAnimeByTitle` returns `null` — the UI shows an error message in `#result-error` instead of a score. (Note: AniList's `Media(search:)` responds with HTTP 404, not `200` + `null`, when nothing matches — `fetchAnimeByTitle` special-cases `res.status === 404` into a `null` return rather than throwing.)
+3. On a match, `computeNicheScore(animeTags, weightTags)` takes the matched anime's 10 tags with the highest `rank` (its most-accepted tags), and for every one of those that also appears in the top-100-derived weights table (`weightTags`, from `AniList.getJudgementData()`), adds `weight^2 * acceptance` to the running score, where `weight` is that tag's `score` from the weights table and `acceptance` is that anime's own `rank/100` for the tag (0–1). The weight is squared to amplify the influence of strongly mainstream/niche tags over borderline ones. Tags outside the top 10, or not present in the weights table, are skipped.
+4. The final score renders in `#result-score`; the per-tag breakdown (name, weight, acceptance, contribution — sorted by contribution descending) renders into `#contributions-table`, revealed via the `#contributions-btn` toggle below the score.
+
+Any unexpected fetch failure (network error, non-404 bad response) is caught and shown as a generic error in `#result-error`.
 
 Key DOM hooks (`index.html`):
 - `#anime-input` — text field for anime title
 - `#search-btn` — triggers search
 - `#result`, `#result-title`, `#result-score`, `#result-layer` — output section, hidden until first search
+- `#result-error` — shown instead of a score on not-found/error
+- `#contributions-btn` — toggles `#contributions-table` (per-tag score breakdown), hidden until a successful search
 
 ### Judgement details (tag weighting)
 
@@ -43,8 +52,7 @@ Key DOM hooks: `#details-btn` (toggles `#judgement-details.hidden`), `#judgement
 
 ## Planned/missing pieces
 
-- Wire the per-tag `score` values from `anilist.js` into an actual niche-score computation for the searched anime in `#result`
-- Mapping of score → Made in Abyss "layer" visualization
+- Mapping of niche score → Made in Abyss "layer" visualization (`#result-layer` still says "TBD")
 - No tests, no bundler, no package.json yet — added if/when a real data dependency is introduced
 - No handling yet for AniList rate limiting (~30 req/min unauthenticated) beyond the localStorage cache
 
