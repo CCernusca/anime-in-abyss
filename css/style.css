@@ -10,6 +10,7 @@ body {
 }
 
 header {
+  position: relative;
   text-align: center;
   padding: 2rem 1rem;
 }
@@ -17,6 +18,22 @@ header {
 header h1 {
   margin: 0;
   font-size: 2.5rem;
+}
+
+#details-btn {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  padding: 0.4rem 0.9rem;
+  border: 1px solid #444;
+  border-radius: 4px;
+  background: #1a1d24;
+  color: #e6e6e6;
+  cursor: pointer;
+}
+
+#details-btn:hover {
+  background: #22262f;
 }
 
 main {
@@ -58,6 +75,42 @@ main {
   border: 1px solid #333;
   border-radius: 4px;
   background: #1a1d24;
+}
+
+#judgement-details {
+  margin-top: 2rem;
+}
+
+.subtitle {
+  color: #999;
+  font-size: 0.9rem;
+  margin-top: 0.25rem;
+}
+
+.explanation {
+  color: #bbb;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  margin-top: 0.75rem;
+}
+
+#tag-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1rem;
+  font-size: 0.9rem;
+}
+
+#tag-table th,
+#tag-table td {
+  text-align: left;
+  padding: 0.5rem;
+  border-bottom: 1px solid #2a2d34;
+}
+
+#tag-table th {
+  color: #999;
+  font-weight: 600;
 }
 
 footer {

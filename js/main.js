@@ -19,3 +19,36 @@ function handleSearch() {
   resultLayer.textContent = 'Abyss layer: TBD';
   resultSection.hidden = false;
 }
+
+const detailsBtn = document.getElementById('details-btn');
+const judgementDetails = document.getElementById('judgement-details');
+const judgementStatus = document.getElementById('judgement-status');
+const tagTable = document.getElementById('tag-table');
+const tagTableBody = document.getElementById('tag-table-body');
+
+detailsBtn.addEventListener('click', () => {
+  judgementDetails.hidden = !judgementDetails.hidden;
+});
+
+function renderJudgementDetails(tags) {
+  tagTableBody.innerHTML = '';
+  for (const tag of tags) {
+    const row = document.createElement('tr');
+    row.innerHTML = `
+      <td>${tag.name}</td>
+      <td>${tag.fraction.toFixed(2)}</td>
+      <td>${tag.avgAcceptance.toFixed(2)}</td>
+      <td>${tag.score.toFixed(2)}</td>
+    `;
+    tagTableBody.appendChild(row);
+  }
+  judgementStatus.hidden = true;
+  tagTable.hidden = false;
+}
+
+AniList.getJudgementData()
+  .then(renderJudgementDetails)
+  .catch((err) => {
+    judgementStatus.textContent = 'Could not load tag data from AniList.';
+    console.error(err);
+  });

@@ -8,6 +8,7 @@
 </head>
 <body>
   <header>
+    <button id="details-btn">Details</button>
     <h1>Anime in Abyss</h1>
     <p>How niche is your anime?</p>
   </header>
@@ -23,12 +24,38 @@
       <p id="result-score"></p>
       <p id="result-layer"></p>
     </section>
+
+    <section id="judgement-details" hidden>
+      <h2>Judgement Details</h2>
+      <p class="subtitle">Tag weights derived from the top 100 most popular anime on AniList</p>
+      <p class="explanation">
+        For each tag seen across the top 100 most popular anime: <strong>Frequency</strong>
+        is the share of those anime carrying the tag (0–1). <strong>Avg. Acceptance</strong>
+        is the tag's mean community relevance rank on those anime (0–1). <strong>Score</strong>
+        is Frequency &times; Avg. Acceptance — a high score means a tag is both common and
+        strongly relevant among popular anime, i.e. a mainstream signal. Low-score tags are
+        candidate niche indicators.
+      </p>
+      <p id="judgement-status">Loading tag data...</p>
+      <table id="tag-table" hidden>
+        <thead>
+          <tr>
+            <th>Tag</th>
+            <th>Frequency</th>
+            <th>Avg. Acceptance</th>
+            <th>Score</th>
+          </tr>
+        </thead>
+        <tbody id="tag-table-body"></tbody>
+      </table>
+    </section>
   </main>
 
   <footer>
     <p>Made in Abyss references used for illustrative purposes only.</p>
   </footer>
 
+  <script src="js/anilist.js"></script>
   <script src="js/main.js"></script>
 </body>
 </html>
