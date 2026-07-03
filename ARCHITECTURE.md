@@ -11,9 +11,10 @@ index.html      Entry point, page markup
 css/
   style.css     Global styles (dark theme)
 js/
-  main.js       UI logic (search input handling, result rendering, judgement rendering)
+  main.js       UI logic (search input handling, result rendering, judgement rendering, abyss marker)
   anilist.js    AniList GraphQL client + tag-weight computation
-assets/          Static images/media (currently empty)
+assets/
+  abyss_map.png Made in Abyss map artwork, used as the full-page scroll background (1708x2642)
 ```
 
 ## Current behavior
@@ -26,6 +27,7 @@ assets/          Static images/media (currently empty)
 2. If AniList has no match, `fetchAnimeByTitle` returns `null` — the UI shows an error message in `#result-error` instead of a score. (Note: AniList's `Media(search:)` responds with HTTP 404, not `200` + `null`, when nothing matches — `fetchAnimeByTitle` special-cases `res.status === 404` into a `null` return rather than throwing.)
 3. On a match, `computeNicheScore(animeTags, weightTags)` takes the matched anime's 10 tags with the highest `rank` (its most-accepted tags), and for every one of those that also appears in the top-100-derived weights table (`weightTags`, from `AniList.getJudgementData()`), adds `weight^2 * acceptance` to the running score, where `weight` is that tag's `score` from the weights table and `acceptance` is that anime's own `rank/100` for the tag (0–1). The weight is squared to amplify the influence of strongly mainstream/niche tags over borderline ones. Tags outside the top 10, or not present in the weights table, are skipped.
 4. The final score renders in `#result-score`; the per-tag breakdown (name, weight, acceptance, contribution — sorted by contribution descending) renders into `#contributions-table`, revealed via the `#contributions-btn` toggle below the score.
+5. `placeMarker(score)` positions `#abyss-marker` on the map background and smooth-scrolls it into view (see "Abyss map & marker" below).
 
 Any unexpected fetch failure (network error, non-404 bad response) is caught and shown as a generic error in `#result-error`.
 
@@ -35,6 +37,18 @@ Key DOM hooks (`index.html`):
 - `#result`, `#result-title`, `#result-score`, `#result-layer` — output section, hidden until first search
 - `#result-error` — shown instead of a score on not-found/error
 - `#contributions-btn` — toggles `#contributions-table` (per-tag score breakdown), hidden until a successful search
+
+### Abyss map & marker
+
+The full page uses `assets/abyss_map.png` as a `body` background at its natural resolution (`background-size: 1708px auto`, no scaling — this keeps pixel math simple/rudimentary). `body` has `min-height: 2642px` (the image's natural height) so the whole map is scrollable.
+
+`js/main.js` maps a niche score linearly onto a vertical pixel position on that background, then centers the viewport there:
+
+- `score = 1` → `top: 150px` (shallow, near the surface)
+- `score = 0` → `top: 2200px` (deep in the Abyss)
+- Linear interpolation in between: `top = 2200 - clamp(score, 0, 1) * (2200 - 150)`. Scores are clamped to `[0, 1]` for placement purposes only (the displayed score itself is not clamped, and can exceed 1 since it's a sum of several tag contributions).
+
+`#abyss-marker` (a plain `div` styled as a red dot, direct child of `body` so its `position: absolute` resolves against `body`) is moved to that `top` and unhidden; `window.scrollTo({ top: top - viewportHeight/2, behavior: 'smooth' })` then centers it in view. This is a rudimentary marker — no map pins/icons, no layer labels tying back to specific Made in Abyss layers yet.
 
 ### Judgement details (tag weighting)
 
@@ -52,9 +66,10 @@ Key DOM hooks: `#details-btn` (toggles `#judgement-details.hidden`), `#judgement
 
 ## Planned/missing pieces
 
-- Mapping of niche score → Made in Abyss "layer" visualization (`#result-layer` still says "TBD")
+- `#result-layer` still says "TBD" — no named-layer lookup (e.g. "Layer 3: Great Fault") tied to the marker position yet, just the raw pixel placement
 - No tests, no bundler, no package.json yet — added if/when a real data dependency is introduced
 - No handling yet for AniList rate limiting (~30 req/min unauthenticated) beyond the localStorage cache
+- Marker positioning assumes the background image is rendered at its natural 1708px width; very narrow viewports will horizontally clip the map
 
 ## Conventions
 

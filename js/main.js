@@ -20,6 +20,18 @@ contributionsBtn.addEventListener('click', () => {
   contributionsTable.hidden = !contributionsTable.hidden;
 });
 
+const abyssMarker = document.getElementById('abyss-marker');
+const MARKER_TOP_AT_SCORE_1 = 150;
+const MARKER_TOP_AT_SCORE_0 = 2200;
+
+function placeMarker(score) {
+  const clamped = Math.max(0, Math.min(1, score));
+  const top = MARKER_TOP_AT_SCORE_0 - clamped * (MARKER_TOP_AT_SCORE_0 - MARKER_TOP_AT_SCORE_1);
+  abyssMarker.style.top = `${top}px`;
+  abyssMarker.hidden = false;
+  window.scrollTo({ top: Math.max(0, top - window.innerHeight / 2), behavior: 'smooth' });
+}
+
 const MAX_TAGS = 10;
 
 // score = sum over the anime's 10 most-accepted tags that also appear in the
@@ -65,6 +77,7 @@ function resetResult() {
   resultTitle.textContent = '';
   resultScore.textContent = '';
   resultLayer.textContent = '';
+  abyssMarker.hidden = true;
 }
 
 async function handleSearch() {
@@ -97,6 +110,7 @@ async function handleSearch() {
 
     renderContributions(contributions);
     contributionsBtn.hidden = false;
+    placeMarker(score);
   } catch (err) {
     resultScore.textContent = '';
     resultError.textContent = 'Something went wrong fetching data from AniList.';

@@ -3,10 +3,30 @@
 }
 
 body {
+  position: relative;
   margin: 0;
   font-family: system-ui, sans-serif;
-  background: #0d0f14;
   color: #e6e6e6;
+  background-color: #0d0f14;
+  background-image: url('../assets/abyss_map.png');
+  background-repeat: no-repeat;
+  background-position: top center;
+  background-size: 1708px auto;
+  min-height: 2642px;
+}
+
+#abyss-marker {
+  position: absolute;
+  left: 50%;
+  width: 20px;
+  height: 20px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: #ff4444;
+  border: 2px solid #fff;
+  box-shadow: 0 0 10px rgba(255, 68, 68, 0.9);
+  z-index: 10;
+  pointer-events: none;
 }
 
 header {
@@ -129,11 +149,4 @@ main {
 
 #contributions-btn:hover {
   background: #22262f;
-}
-
-footer {
-  text-align: center;
-  padding: 1rem;
-  font-size: 0.8rem;
-  color: #888;
 }
