@@ -1,5 +1,14 @@
+if ('scrollRestoration' in history) {
+  history.scrollRestoration = 'manual';
+}
+window.scrollTo(0, 0);
+
 const input = document.getElementById('anime-input');
 const btn = document.getElementById('search-btn');
+const searchSection = document.getElementById('search');
+const backBtn = document.getElementById('back-btn');
+const headerTitle = document.querySelector('header h1');
+const headerSubtitle = document.getElementById('header-subtitle');
 const resultSection = document.getElementById('result');
 const resultTitle = document.getElementById('result-title');
 const resultScore = document.getElementById('result-score');
@@ -11,25 +20,87 @@ const contributionsTableBody = document.getElementById('contributions-table-body
 
 const judgementDataPromise = AniList.getJudgementData();
 
+document.body.style.backgroundPositionX = '51.5%';
+
 btn.addEventListener('click', handleSearch);
 input.addEventListener('keydown', (e) => {
   if (e.key === 'Enter') handleSearch();
 });
+input.addEventListener('focus', () => {
+  document.body.classList.remove('descending');
+  document.body.classList.add('zoomed-in');
+});
+
+backBtn.addEventListener('click', () => {
+  cancelPendingMarkerReveal();
+  searchSection.hidden = false;
+  headerTitle.hidden = false;
+  headerSubtitle.hidden = false;
+  backBtn.hidden = true;
+  detailsBtn.hidden = true;
+  resultSection.hidden = true;
+  abyssMarker.hidden = true;
+  document.body.classList.remove('descending');
+  document.body.classList.add('zoomed-in');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  waitForScrollEnd(0, () => {
+    input.focus();
+  });
+});
 
 contributionsBtn.addEventListener('click', () => {
-  contributionsTable.hidden = !contributionsTable.hidden;
+  const opening = contributionsTable.hidden;
+  contributionsTable.hidden = !opening;
+  if (opening) judgementDetails.hidden = true;
 });
 
 const abyssMarker = document.getElementById('abyss-marker');
 const MARKER_TOP_AT_SCORE_1 = 150;
 const MARKER_TOP_AT_SCORE_0 = 2200;
 
+const ZOOM_TRANSITION_MS = 1400;
+const MARKER_REVEAL_DELAY_MS = ZOOM_TRANSITION_MS;
+let markerRevealTimeoutId = null;
+let scrollWatchRafId = null;
+
+function cancelPendingMarkerReveal() {
+  clearTimeout(markerRevealTimeoutId);
+  markerRevealTimeoutId = null;
+  cancelAnimationFrame(scrollWatchRafId);
+  scrollWatchRafId = null;
+}
+
+function waitForScrollEnd(target, callback) {
+  let stableFrames = 0;
+  function check() {
+    const y = window.scrollY;
+    if (Math.abs(y - target) < 1) {
+      stableFrames++;
+    } else {
+      stableFrames = 0;
+    }
+    if (stableFrames >= 3) {
+      scrollWatchRafId = null;
+      callback();
+    } else {
+      scrollWatchRafId = requestAnimationFrame(check);
+    }
+  }
+  scrollWatchRafId = requestAnimationFrame(check);
+}
+
 function placeMarker(score) {
   const clamped = Math.max(0, Math.min(1, score));
   const top = MARKER_TOP_AT_SCORE_0 - clamped * (MARKER_TOP_AT_SCORE_0 - MARKER_TOP_AT_SCORE_1);
   abyssMarker.style.top = `${top}px`;
-  abyssMarker.hidden = false;
-  window.scrollTo({ top: Math.max(0, top - window.innerHeight / 2), behavior: 'smooth' });
+  markerRevealTimeoutId = setTimeout(() => {
+    markerRevealTimeoutId = null;
+    const target = Math.max(0, top - window.innerHeight / 2);
+    window.scrollTo({ top: target, behavior: 'smooth' });
+    waitForScrollEnd(target, () => {
+      abyssMarker.hidden = false;
+    });
+  }, MARKER_REVEAL_DELAY_MS);
 }
 
 const MAX_TAGS = 10;
@@ -70,10 +141,11 @@ function renderContributions(contributions) {
 }
 
 function resetResult() {
-  resultSection.hidden = false;
+  resultSection.hidden = true;
   resultError.hidden = true;
   contributionsBtn.hidden = true;
   contributionsTable.hidden = true;
+  judgementDetails.hidden = true;
   resultTitle.textContent = '';
   resultScore.textContent = '';
   resultLayer.textContent = '';
@@ -83,6 +155,14 @@ function resetResult() {
 async function handleSearch() {
   const title = input.value.trim();
   if (!title) return;
+
+  searchSection.hidden = true;
+  headerTitle.hidden = true;
+  headerSubtitle.hidden = true;
+  backBtn.hidden = false;
+  detailsBtn.hidden = false;
+  document.body.classList.remove('zoomed-in');
+  document.body.classList.add('descending');
 
   resetResult();
   resultTitle.textContent = title;
@@ -120,13 +200,22 @@ async function handleSearch() {
 }
 
 const detailsBtn = document.getElementById('details-btn');
+const judgementDetailsBtn = document.getElementById('judgement-details-btn');
 const judgementDetails = document.getElementById('judgement-details');
 const judgementStatus = document.getElementById('judgement-status');
 const tagTable = document.getElementById('tag-table');
 const tagTableBody = document.getElementById('tag-table-body');
 
 detailsBtn.addEventListener('click', () => {
-  judgementDetails.hidden = !judgementDetails.hidden;
+  if (resultTitle.textContent) {
+    resultSection.hidden = !resultSection.hidden;
+  }
+});
+
+judgementDetailsBtn.addEventListener('click', () => {
+  const opening = judgementDetails.hidden;
+  judgementDetails.hidden = !opening;
+  if (opening) contributionsTable.hidden = true;
 });
 
 function renderJudgementDetails(tags) {

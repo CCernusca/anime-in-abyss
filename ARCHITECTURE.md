@@ -34,8 +34,8 @@ Any unexpected fetch failure (network error, non-404 bad response) is caught and
 Key DOM hooks (`index.html`):
 - `#anime-input` — text field for anime title
 - `#search-btn` — triggers search
-- `#result`, `#result-title`, `#result-score`, `#result-layer` — output section, hidden until first search
-- `#result-error` — shown instead of a score on not-found/error
+- `#result`, `#result-title`, `#result-score`, `#result-layer` — output section; populated on search but stays `hidden` until the user clicks **Details** (see "Zoom & navigation state")
+- `#result-error` — shown instead of a score on not-found/error (also gated behind `#result`'s hidden state)
 - `#contributions-btn` — toggles `#contributions-table` (per-tag score breakdown), hidden until a successful search
 
 ### Abyss map & marker
@@ -49,6 +49,17 @@ The full page uses `assets/abyss_map.png` as a `body` background at its natural 
 - Linear interpolation in between: `top = 2200 - clamp(score, 0, 1) * (2200 - 150)`. Scores are clamped to `[0, 1]` for placement purposes only (the displayed score itself is not clamped, and can exceed 1 since it's a sum of several tag contributions).
 
 `#abyss-marker` (a plain `div` styled as a red dot, direct child of `body` so its `position: absolute` resolves against `body`) is moved to that `top` and unhidden; `window.scrollTo({ top: top - viewportHeight/2, behavior: 'smooth' })` then centers it in view. This is a rudimentary marker — no map pins/icons, no layer labels tying back to specific Made in Abyss layers yet.
+
+### Zoom & navigation state
+
+`body` carries two mutually-exclusive state classes that drive a CSS `background-size` transition (`transition: background-size 1.4s ease`) to simulate a camera zoom on the `abyss_map.png` background:
+
+- `body.zoomed-in` — the "at the surface, entering a title" state. Much larger `background-size` (tight zoom on the top of the map) and `overflow: hidden` (scroll locked, so the user can't scroll away from the search box before descending). Applied on page load, on `#anime-input` focus, and by `#back-btn`.
+- `body.descending` — the "results" state, applied by `handleSearch()` when **Descend** is pressed. Smaller `background-size` (zoomed/panned out to reveal deeper layers) and normal scrolling restored. `placeMarker(score)`'s existing `scrollTo` then runs concurrently with the zoom-out transition.
+
+`handleSearch()` also hides `#search` (the input + Descend button — the "title dialogue") and reveals `#back-btn` (top-left, "🔍 Search") when descending. `#back-btn` reverses all of this: re-shows `#search`, hides itself, hides `#result`/`#abyss-marker`, swaps `descending` back to `zoomed-in`, and scrolls to top.
+
+`#result` (the score/breakdown panel) is populated by `handleSearch()` but stays `hidden` through the whole descent — `#details-btn`'s click handler is what reveals it (alongside the unrelated `#judgement-details` panel it already toggled), so nothing but the map, marker, and the two fixed corner buttons (`#back-btn`, `#details-btn`, both `position: fixed` so they stay onscreen while the page scrolls) is visible until the user asks for details.
 
 ### Judgement details (tag weighting)
 
