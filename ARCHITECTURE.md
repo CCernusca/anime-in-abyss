@@ -26,15 +26,17 @@ assets/
 1. Fetches the searched title via `AniList.fetchAnimeByTitle(title)` (in `js/anilist.js`), in parallel with the (already in-flight, cached-after-first-load) judgement-data promise.
 2. If AniList has no match, `fetchAnimeByTitle` returns `null` — the UI shows an error message in `#result-error` instead of a score. (Note: AniList's `Media(search:)` responds with HTTP 404, not `200` + `null`, when nothing matches — `fetchAnimeByTitle` special-cases `res.status === 404` into a `null` return rather than throwing.)
 3. On a match, `computeNicheScore(animeTags, weightTags)` takes the matched anime's 10 tags with the highest `rank` (its most-accepted tags), and for every one of those that also appears in the top-100-derived weights table (`weightTags`, from `AniList.getJudgementData()`), adds `weight^2 * acceptance` to the running score, where `weight` is that tag's `score` from the weights table and `acceptance` is that anime's own `rank/100` for the tag (0–1). The weight is squared to amplify the influence of strongly mainstream/niche tags over borderline ones. Tags outside the top 10, or not present in the weights table, are skipped.
-4. The final score renders in `#result-score`; the per-tag breakdown (name, weight, acceptance, contribution — sorted by contribution descending) renders into `#contributions-table`, revealed via the `#contributions-btn` toggle. The anime's `coverImage.large` (fetched alongside `tags` in `ANIME_BY_TITLE_QUERY`) renders into `#result-cover` next to the title, and is also set as `#abyss-marker`'s `background-image` (see "Abyss map & marker").
-5. `placeMarker(score)` positions `#abyss-marker` on the map background; the scroll-into-view is deferred until the zoom-out transition finishes (see "Zoom & navigation state").
+4. The final score renders in `#result-score`; the per-tag breakdown (name, weight, acceptance, contribution — sorted by contribution descending) renders into `#contributions-table`, revealed via the `#contributions-btn` toggle. The anime's `coverImage.large` (fetched alongside `tags` in `ANIME_BY_TITLE_QUERY`) renders into `#result-cover` next to the title, and is also set as the new marker's `background-image` (see "Abyss map & marker").
+5. `placeMarker(entry)` creates a new marker on the map background for this search (see "Abyss map & marker"); the scroll-into-view is deferred until the zoom-out transition finishes (see "Zoom & navigation state").
+
+Each successful search's data (title, score, contributions, cover URL, marker vertical position) is captured in a plain `entry` object rather than overwriting shared globals — this is what lets multiple searches' markers and details coexist (see "Abyss map & marker").
 
 Any unexpected fetch failure (network error, non-404 bad response) is caught and shown as a generic error in `#result-error`.
 
 Key DOM hooks (`index.html`):
 - `#anime-input` — text field for anime title
 - `#search-btn` — triggers search
-- `#result` — output section; populated on search but stays `hidden` until the user clicks **Details** or the marker (see "Zoom & navigation state")
+- `#result` — output section; populated on search but stays `hidden` until the user clicks **Details** or a marker (see "Zoom & navigation state")
 - `#result-header` (flex row) — `#result-text` (title/score/layer/buttons column) beside `#result-cover` (cover art, stretched to match that column's height via `align-self: stretch` + `object-fit: cover`)
 - `#result-error` — shown instead of a score on not-found/error (also gated behind `#result`'s hidden state)
 - `#contributions-btn` — toggles `#contributions-table` (per-tag score breakdown), hidden until a successful search; mutually exclusive with `#judgement-details-btn` (opening one closes the other)
@@ -43,28 +45,35 @@ Key DOM hooks (`index.html`):
 
 The full page uses `assets/abyss_map.png` as a `body` background, sized via `background-size: max(<state-px>, 100vw) auto` per zoom state (see "Zoom & navigation state") — the `max(..., 100vw)` guards against background-color showing through on the sides on viewports wider than the state's base pixel width. `body`'s `min-height` mirrors this: `max(<state-height>px, calc(100vw * 1.5468), 100vh)` (1.5468 is the map image's natural height/width ratio, 2642/1708) so the background never runs out vertically either.
 
-`js/main.js` maps a niche score linearly onto a vertical pixel position on that background, then centers the viewport there:
+`js/main.js` maps a niche score linearly onto a vertical pixel position on that background:
 
 - `score = 1` → `top: 150px` (shallow, near the surface)
 - `score = 0` → `top: 2200px` (deep in the Abyss)
 - Linear interpolation in between: `top = 2200 - clamp(score, 0, 1) * (2200 - 150)`. Scores are clamped to `[0, 1]` for placement purposes only (the displayed score itself is not clamped, and can exceed 1 since it's a sum of several tag contributions).
 
-`#abyss-marker` (a `div`, direct child of `body` so its `position: absolute` resolves against `body`) is moved to that `top`. It's filled with the searched anime's cover art (`background-image`, `background-size: cover`, cropped into a circle) with a red outline/glow as a fallback-and-accent color, and is clickable — it reveals `#result` the same way `#details-btn` does. The reveal (`abyssMarker.hidden = false`) and its scroll are both deferred until the zoom-out settles (see next section) — no named-layer labels tying back to specific Made in Abyss layers yet.
+**Markers are per-search, not shared.** `placeMarker(entry)` creates a new `div.abyss-marker` (appended to `body`, `position: absolute` so it resolves against `body`) for every successful search — it is never removed or repositioned by later searches, so every anime you've looked up this session keeps its own marker on the map (cleared only by reloading or closing the tab). The computed `top` is stashed back onto `entry.markerTop` so later code (Details button, see below) can scroll back to it. Each marker is filled with that search's cover art (`background-image`, `background-size: cover`, cropped into a circle) with a red outline/glow as a fallback-and-accent color, and is clickable — clicking it calls `showResultFor(entry, true)`, populating `#result` with *that* marker's data and scrolling to it, regardless of which search is most recent.
+
+Markers are hidden (`display: none` via CSS) whenever `body` has the `zoomed-in` or `panning` class — see "Zoom & navigation state" — so they don't clutter the surface view or the zoom transition itself.
 
 ### Zoom & navigation state
 
-`body` carries two mutually-exclusive state classes that drive a CSS `background-size` transition (`transition: background-size 1.4s ease`) to simulate a camera zoom on the `abyss_map.png` background:
+`body` carries state classes that drive a CSS `background-size` transition (`transition: background-size 1.4s ease`) to simulate a camera zoom on the `abyss_map.png` background:
 
-- `body.zoomed-in` — the "at the surface, entering a title" state (baked into `index.html`'s initial `<body class="zoomed-in">` so there's no animate-in flash on first paint). Much larger `background-size` and `overflow: hidden` (scroll locked). Applied on page load, on `#anime-input` focus, and by `#back-btn`.
+- `body.zoomed-in` — the "at the surface, entering a title" state (baked into `index.html`'s initial `<body class="zoomed-in">` so there's no animate-in flash on first paint). Much larger `background-size` and `overflow: hidden` (scroll locked). Applied on page load, on `#anime-input` focus, and by `#back-btn`. All markers are hidden while this class is present.
 - `body.descending` — the "results" state, applied by `handleSearch()` when **Descend** is pressed. Smaller `background-size` (zoomed/panned out to reveal deeper layers) and normal scrolling restored.
+- `body.panning` — added alongside `descending` and auto-removed via `setTimeout(..., ZOOM_TRANSITION_MS)`; while present, *all* markers are hidden (not just the new one), so nothing pops in mid-pan even if older markers were already revealed from a previous search.
 
 On load, `js/main.js` sets `history.scrollRestoration = 'manual'` and forces `scrollTo(0, 0)` — otherwise the browser can restore a stale scroll position from before a reload while the zoom state resets fresh, desyncing the two.
 
-`handleSearch()` hides `#search` (input + Descend button), `header h1`/`#header-subtitle`, and reveals `#back-btn` (top-left, "🔍 Search") and `#details-btn` (top-right) — both are `hidden` by default and only shown while descending. `#back-btn`'s click handler reverses all of this: re-shows the search UI and header text, hides `#back-btn`/`#details-btn`/`#result`/`#abyss-marker`, swaps `descending` back to `zoomed-in`, and scrolls to top — deferring `input.focus()` until that scroll settles (via `waitForScrollEnd`, see below).
+`handleSearch()` hides `#search` (input + Descend button), `header h1`/`#header-subtitle`, and reveals `#back-btn` (top-left, "🔍 Search") and `#details-btn` (top-right) — both are `hidden` by default and only shown while descending. `#back-btn`'s click handler reverses all of this: re-shows the search UI and header text, hides `#back-btn`/`#details-btn`/`#result`, swaps `descending` back to `zoomed-in`, and scrolls to top — deferring `input.focus()` until that scroll settles (via `waitForScrollEnd`, see below).
 
-`placeMarker(score)` waits `ZOOM_TRANSITION_MS` (1400ms, matching the CSS transition) before calling `scrollTo`, then polls `window.scrollY` on `requestAnimationFrame` (`waitForScrollEnd`) until it's within 1px of the target for 3 consecutive frames, and only then unhides `#abyss-marker`. This whole sequence (`markerRevealTimeoutId` + `scrollWatchRafId`) is cancellable via `cancelPendingMarkerReveal()`, which `#back-btn` calls so a stale reveal/scroll can't fire after the user's already bailed back to search mode.
+`placeMarker(entry)` waits `ZOOM_TRANSITION_MS` (1400ms, matching the CSS transition) before calling `scrollTo`, then polls `window.scrollY` on `requestAnimationFrame` (`waitForScrollEnd`) until it's within 1px of the target for 3 consecutive frames, and only then unhides that marker. This whole sequence (`markerRevealTimeoutId` + `scrollWatchRafId` + `pendingMarkerEl`) is cancellable via `cancelPendingMarkerReveal()`, which `#back-btn` calls so a stale reveal/scroll can't fire after the user's already bailed back to search mode — the in-flight marker is revealed immediately rather than left permanently hidden, so a completed search is never silently lost.
 
-`#result` (the score/breakdown panel) is populated by `handleSearch()` but stays `hidden` through the whole descent — `#details-btn`'s click handler (or clicking `#abyss-marker`) is what reveals it, so nothing but the map, marker, and the two fixed corner buttons (`#back-btn`, `#details-btn`, both `position: fixed` so they stay onscreen while the page scrolls) is visible until then.
+`#result` (the score/breakdown panel, shared across all markers) is populated by `handleSearch()` via `showResultFor(entry, reveal)` but stays `hidden` through the whole descent unless `reveal` is `true`. Two things can reveal it:
+- **`#details-btn`** — toggles `#result` open/closed; opening always shows `latestSearchEntry` (the most recent search, tracked separately from whatever's currently displayed) and scrolls to its marker.
+- **Clicking any marker** — always opens `#result` with *that* marker's `entry` (setting `currentEntry`, distinct from `latestSearchEntry`) and scrolls to it.
+
+A `document`-level `click` listener closes `#result` on any click outside it, excluding clicks on markers or `#details-btn` (which have their own open logic and would otherwise immediately re-close what they just opened).
 
 ### Judgement details (tag weighting)
 

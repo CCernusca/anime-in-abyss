@@ -57,7 +57,7 @@ body.descending {
   min-height: max(2011px, calc(100vw * 1.5468), 100vh);
 }
 
-#abyss-marker {
+.abyss-marker {
   position: absolute;
   left: 50%;
   width: 32px;
@@ -71,6 +71,11 @@ body.descending {
   box-shadow: 0 0 10px rgba(255, 68, 68, 0.9);
   z-index: 10;
   cursor: pointer;
+}
+
+body.zoomed-in .abyss-marker,
+body.panning .abyss-marker {
+  display: none;
 }
 
 header {

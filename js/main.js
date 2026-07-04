@@ -40,7 +40,6 @@ backBtn.addEventListener('click', () => {
   backBtn.hidden = true;
   detailsBtn.hidden = true;
   resultSection.hidden = true;
-  abyssMarker.hidden = true;
   document.body.classList.remove('descending');
   document.body.classList.add('zoomed-in');
   window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -55,26 +54,34 @@ contributionsBtn.addEventListener('click', () => {
   if (opening) judgementDetails.hidden = true;
 });
 
-const abyssMarker = document.getElementById('abyss-marker');
 const MARKER_TOP_AT_SCORE_1 = 150;
 const MARKER_TOP_AT_SCORE_0 = 2200;
-
-abyssMarker.addEventListener('click', () => {
-  if (resultTitle.textContent) {
-    resultSection.hidden = false;
-  }
-});
 
 const ZOOM_TRANSITION_MS = 1400;
 const MARKER_REVEAL_DELAY_MS = ZOOM_TRANSITION_MS;
 let markerRevealTimeoutId = null;
 let scrollWatchRafId = null;
+let pendingMarkerEl = null;
+let panningTimeoutId = null;
+
+// entry currently shown in #result (may be an older marker the user clicked)
+let currentEntry = null;
+// most recently searched anime — what #details-btn (top-right) always opens
+let latestSearchEntry = null;
 
 function cancelPendingMarkerReveal() {
   clearTimeout(markerRevealTimeoutId);
   markerRevealTimeoutId = null;
   cancelAnimationFrame(scrollWatchRafId);
   scrollWatchRafId = null;
+  clearTimeout(panningTimeoutId);
+  panningTimeoutId = null;
+  document.body.classList.remove('panning');
+  // don't leave a completed search without a marker just because the user bailed early
+  if (pendingMarkerEl) {
+    pendingMarkerEl.hidden = false;
+    pendingMarkerEl = null;
+  }
 }
 
 function waitForScrollEnd(target, callback) {
@@ -96,16 +103,62 @@ function waitForScrollEnd(target, callback) {
   scrollWatchRafId = requestAnimationFrame(check);
 }
 
-function placeMarker(score) {
-  const clamped = Math.max(0, Math.min(1, score));
+// populates the shared #result panel with one anime's data; `reveal` controls
+// whether the (possibly hidden) panel is forced open or just kept in sync
+function showResultFor(entry, reveal) {
+  currentEntry = entry;
+  resultTitle.textContent = entry.title;
+  if (entry.coverUrl) {
+    resultCover.src = entry.coverUrl;
+    resultCover.alt = `${entry.title} cover`;
+    resultCover.hidden = false;
+  } else {
+    resultCover.hidden = true;
+    resultCover.src = '';
+  }
+  resultScore.textContent = `Niche score: ${entry.score.toFixed(4)}`;
+  resultLayer.textContent = 'Abyss layer: TBD';
+  resultError.hidden = true;
+  renderContributions(entry.contributions);
+  contributionsBtn.hidden = false;
+  contributionsTable.hidden = true;
+  judgementDetails.hidden = true;
+  if (reveal) {
+    resultSection.hidden = false;
+    if (entry.markerTop !== undefined) {
+      const target = Math.max(0, entry.markerTop - window.innerHeight / 2);
+      window.scrollTo({ top: target, behavior: 'smooth' });
+    }
+  }
+}
+
+// each search adds a new marker to the map; none of them are ever removed —
+// they persist for the rest of the session (until reload/exit)
+function placeMarker(entry) {
+  const clamped = Math.max(0, Math.min(1, entry.score));
   const top = MARKER_TOP_AT_SCORE_0 - clamped * (MARKER_TOP_AT_SCORE_0 - MARKER_TOP_AT_SCORE_1);
-  abyssMarker.style.top = `${top}px`;
+  entry.markerTop = top;
+
+  const el = document.createElement('div');
+  el.className = 'abyss-marker';
+  el.style.top = `${top}px`;
+  el.hidden = true;
+  if (entry.coverUrl) {
+    el.style.backgroundImage = `url('${entry.coverUrl}')`;
+  }
+  el.addEventListener('click', () => {
+    showResultFor(entry, true);
+  });
+  document.body.appendChild(el);
+
+  pendingMarkerEl = el;
   markerRevealTimeoutId = setTimeout(() => {
     markerRevealTimeoutId = null;
     const target = Math.max(0, top - window.innerHeight / 2);
     window.scrollTo({ top: target, behavior: 'smooth' });
     waitForScrollEnd(target, () => {
-      abyssMarker.hidden = false;
+      pendingMarkerEl = null;
+      el.hidden = false;
     });
   }, MARKER_REVEAL_DELAY_MS);
 }
@@ -158,8 +211,6 @@ function resetResult() {
   resultCover.src = '';
   resultScore.textContent = '';
   resultLayer.textContent = '';
-  abyssMarker.hidden = true;
-  abyssMarker.style.backgroundImage = '';
 }
 
 async function handleSearch() {
@@ -173,6 +224,12 @@ async function handleSearch() {
   detailsBtn.hidden = false;
   document.body.classList.remove('zoomed-in');
   document.body.classList.add('descending');
+  document.body.classList.add('panning');
+  clearTimeout(panningTimeoutId);
+  panningTimeoutId = setTimeout(() => {
+    panningTimeoutId = null;
+    document.body.classList.remove('panning');
+  }, ZOOM_TRANSITION_MS);
 
   resetResult();
   resultTitle.textContent = title;
@@ -193,22 +250,16 @@ async function handleSearch() {
     }
 
     const { score, contributions } = computeNicheScore(anime.tags || [], weightTags);
+    const entry = {
+      title: anime.title.romaji,
+      score,
+      contributions,
+      coverUrl: (anime.coverImage && anime.coverImage.large) || null,
+    };
 
-    resultTitle.textContent = anime.title.romaji;
-    if (anime.coverImage && anime.coverImage.large) {
-      resultCover.src = anime.coverImage.large;
-      resultCover.alt = `${anime.title.romaji} cover`;
-      resultCover.hidden = false;
-      abyssMarker.style.backgroundImage = `url('${anime.coverImage.large}')`;
-    } else {
-      abyssMarker.style.backgroundImage = '';
-    }
-    resultScore.textContent = `Niche score: ${score.toFixed(4)}`;
-    resultLayer.textContent = 'Abyss layer: TBD';
-
-    renderContributions(contributions);
-    contributionsBtn.hidden = false;
-    placeMarker(score);
+    latestSearchEntry = entry;
+    showResultFor(entry, false);
+    placeMarker(entry);
   } catch (err) {
     resultScore.textContent = '';
     resultError.textContent = 'Something went wrong fetching data from AniList.';
@@ -225,9 +276,20 @@ const tagTable = document.getElementById('tag-table');
 const tagTableBody = document.getElementById('tag-table-body');
 
 detailsBtn.addEventListener('click', () => {
-  if (resultTitle.textContent) {
-    resultSection.hidden = !resultSection.hidden;
+  if (!latestSearchEntry) return;
+  if (resultSection.hidden) {
+    showResultFor(latestSearchEntry, true);
+  } else {
+    resultSection.hidden = true;
   }
+});
+
+document.addEventListener('click', (e) => {
+  if (resultSection.hidden) return;
+  if (resultSection.contains(e.target)) return;
+  if (e.target.closest && e.target.closest('.abyss-marker')) return;
+  if (e.target === detailsBtn) return;
+  resultSection.hidden = true;
 });
 
 judgementDetailsBtn.addEventListener('click', () => {
