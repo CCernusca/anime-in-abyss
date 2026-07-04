@@ -22,6 +22,7 @@ const ANIME_BY_TITLE_QUERY = `
       id
       title { romaji }
       tags { name rank }
+      coverImage { large }
     }
   }
 `;

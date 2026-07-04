@@ -24,12 +24,19 @@
     </section>
 
     <section id="result" hidden>
-      <h2 id="result-title"></h2>
-      <p id="result-score"></p>
-      <p id="result-layer"></p>
-      <p id="result-error" hidden></p>
-      <button id="contributions-btn" hidden>Show tag breakdown</button>
-      <button id="judgement-details-btn">Judgement Details</button>
+      <div id="result-header">
+        <div id="result-text">
+          <h2 id="result-title"></h2>
+          <p id="result-score"></p>
+          <p id="result-layer"></p>
+          <p id="result-error" hidden></p>
+          <div id="result-buttons">
+            <button id="contributions-btn" hidden>Show tag breakdown</button>
+            <button id="judgement-details-btn">Judgement Details</button>
+          </div>
+        </div>
+        <img id="result-cover" alt="" hidden>
+      </div>
       <div id="contributions-table" hidden>
         <table class="data-table">
           <thead>

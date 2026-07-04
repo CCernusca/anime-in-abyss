@@ -11,6 +11,7 @@ const headerTitle = document.querySelector('header h1');
 const headerSubtitle = document.getElementById('header-subtitle');
 const resultSection = document.getElementById('result');
 const resultTitle = document.getElementById('result-title');
+const resultCover = document.getElementById('result-cover');
 const resultScore = document.getElementById('result-score');
 const resultLayer = document.getElementById('result-layer');
 const resultError = document.getElementById('result-error');
@@ -57,6 +58,12 @@ contributionsBtn.addEventListener('click', () => {
 const abyssMarker = document.getElementById('abyss-marker');
 const MARKER_TOP_AT_SCORE_1 = 150;
 const MARKER_TOP_AT_SCORE_0 = 2200;
+
+abyssMarker.addEventListener('click', () => {
+  if (resultTitle.textContent) {
+    resultSection.hidden = false;
+  }
+});
 
 const ZOOM_TRANSITION_MS = 1400;
 const MARKER_REVEAL_DELAY_MS = ZOOM_TRANSITION_MS;
@@ -147,9 +154,12 @@ function resetResult() {
   contributionsTable.hidden = true;
   judgementDetails.hidden = true;
   resultTitle.textContent = '';
+  resultCover.hidden = true;
+  resultCover.src = '';
   resultScore.textContent = '';
   resultLayer.textContent = '';
   abyssMarker.hidden = true;
+  abyssMarker.style.backgroundImage = '';
 }
 
 async function handleSearch() {
@@ -185,6 +195,14 @@ async function handleSearch() {
     const { score, contributions } = computeNicheScore(anime.tags || [], weightTags);
 
     resultTitle.textContent = anime.title.romaji;
+    if (anime.coverImage && anime.coverImage.large) {
+      resultCover.src = anime.coverImage.large;
+      resultCover.alt = `${anime.title.romaji} cover`;
+      resultCover.hidden = false;
+      abyssMarker.style.backgroundImage = `url('${anime.coverImage.large}')`;
+    } else {
+      abyssMarker.style.backgroundImage = '';
+    }
     resultScore.textContent = `Niche score: ${score.toFixed(4)}`;
     resultLayer.textContent = 'Abyss layer: TBD';
 
