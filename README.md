@@ -1,4 +1,4 @@
-# Anime in Abyss
+<img src="assets/favicon.svg" width="32" height="32" align="left"> Anime in Abyss
 
 A little webapp that computes a measure of how niche an anime is and visualizes the result using Made in Abyss references (layers of the Abyss).
 
@@ -6,6 +6,7 @@ A little webapp that computes a measure of how niche an anime is and visualizes 
 
 - Search for any anime by title (fetched live from AniList) and get a **niche score** for it — the more its tags are common/mainstream among the top 100 most popular anime, the higher the score.
 - If no matching anime is found on AniList, you'll get a clear error instead of a broken result.
+- If AniList itself is unreachable or fails (network issue, downtime), a dismissible popup tells you what went wrong instead of the app silently failing.
 - The anime's cover art shows up next to its title in the results, and fills the Abyss marker itself (cropped into a red-outlined circle) so you can spot it on the map at a glance.
 - Expand **Show tag breakdown** to see exactly which of the anime's tags contributed, and how much each one added.
 - The page background is the Made in Abyss map — a higher score drops your marker near the surface, a lower (nichier) score sends it deep into the Abyss, and the page auto-scrolls to show you where you landed once the zoom-out finishes.

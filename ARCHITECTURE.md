@@ -31,7 +31,7 @@ assets/
 
 Each successful search's data (title, score, contributions, cover URL, marker vertical position) is captured in a plain `entry` object rather than overwriting shared globals — this is what lets multiple searches' markers and details coexist (see "Abyss map & marker").
 
-Any unexpected fetch failure (network error, non-404 bad response) is caught and shown as a generic error in `#result-error`.
+Any unexpected fetch failure (network error, non-404 bad response) is caught and shown as a generic error in `#result-error`, and also surfaced via the global `#error-popup` (see "Error popup").
 
 Key DOM hooks (`index.html`):
 - `#anime-input` — text field for anime title
@@ -88,6 +88,12 @@ On page load, `js/main.js` eagerly calls `AniList.getJudgementData()` (defined i
 3. **Cache** — result is stored in `localStorage` under `aia_tag_judgement_v2` with a 24h TTL, to avoid re-hitting AniList on every page load.
 
 Key DOM hooks: `#judgement-details-btn` (toggles `#judgement-details.hidden`, closes `#contributions-table`), `#judgement-details` (panel, hidden by default, nested in `#result`), `#judgement-status` (loading/error text), `#tag-table` / `#tag-table-body` (results, hidden until loaded).
+
+### Error popup
+
+`#error-popup` is a fixed, top-centered dismissible popup (styled with the app's dark/tan palette) for surfacing fetch failures that would otherwise be silent or buried in a hidden panel. `showErrorPopup(message)` (`js/main.js`) sets `#error-popup-message` and unhides the popup; `#error-popup-close` hides it again. Triggered from:
+- `judgementDataPromise`'s top-level `.catch` (AniList top-100 fetch fails on page load, before any search) — alongside the existing `#judgement-status` text update.
+- `handleSearch()`'s `catch` (AniList fetch fails during a search) — alongside the existing `#result-error` text.
 
 ### Scrollable tables
 

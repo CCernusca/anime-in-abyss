@@ -21,6 +21,19 @@ const contributionsTableBody = document.getElementById('contributions-table-body
 
 const judgementDataPromise = AniList.getJudgementData();
 
+const errorPopup = document.getElementById('error-popup');
+const errorPopupMessage = document.getElementById('error-popup-message');
+const errorPopupClose = document.getElementById('error-popup-close');
+
+function showErrorPopup(message) {
+  errorPopupMessage.textContent = message;
+  errorPopup.hidden = false;
+}
+
+errorPopupClose.addEventListener('click', () => {
+  errorPopup.hidden = true;
+});
+
 document.body.style.backgroundPositionX = '51.5%';
 
 btn.addEventListener('click', handleSearch);
@@ -264,6 +277,7 @@ async function handleSearch() {
     resultScore.textContent = '';
     resultError.textContent = 'Something went wrong fetching data from AniList.';
     resultError.hidden = false;
+    showErrorPopup('Something went wrong fetching data from AniList.');
     console.error(err);
   }
 }
@@ -318,5 +332,6 @@ judgementDataPromise
   .then(renderJudgementDetails)
   .catch((err) => {
     judgementStatus.textContent = 'Could not load tag data from AniList.';
+    showErrorPopup('Could not load tag data from AniList. Some features may not work.');
     console.error(err);
   });

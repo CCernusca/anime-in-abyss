@@ -287,6 +287,39 @@ main {
   color: #e57373;
 }
 
+#error-popup {
+  position: fixed;
+  top: 1.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  max-width: 24rem;
+  padding: 1rem 1.25rem;
+  background: #0d0f14;
+  border: 2px solid #9A7E5A;
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+  text-align: center;
+}
+
+#error-popup-message {
+  color: #e57373;
+  margin: 0 0 0.75rem;
+}
+
+#error-popup-close {
+  background: #9A7E5A;
+  color: #000000;
+  border: none;
+  border-radius: 0.25rem;
+  padding: 0.35rem 1rem;
+  cursor: pointer;
+}
+
+#error-popup-close:hover {
+  background: #7A5E3A;
+}
+
 #contributions-btn {
   margin-top: 1rem;
   padding: 0.4rem 0.9rem;
