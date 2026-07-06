@@ -1,5 +1,9 @@
 <img src="assets/favicon.svg" width="32" height="32" align="left"> Anime in Abyss
 
+![demo image](assets/demo-1.png)
+
+*Image showing a comparison of niche-ness between My Hero Acadamia, One Piece, Attack on Titan, Sword Art Online, Death Note and Madoka Magica (listed from most mainstream to most niche, further layers below)*
+
 A little webapp that computes a measure of how niche an anime is and visualizes the result using Made in Abyss references (layers of the Abyss).
 
 ## Features
@@ -18,6 +22,10 @@ A little webapp that computes a measure of how niche an anime is and visualizes 
 - Clicking an older marker shows *its* data in the panel, but **Details** (top-right) always jumps back to your most recent search.
 - **Judgement Details** — inside the result panel, click **Judgement Details** (next to **Show tag breakdown** — only one of the two can be open at a time) to see how the judging works generally: the app pulls the top 100 most popular anime from AniList and breaks down every tag they carry into a "mainstream score" (how common the tag is, weighted by how strongly the community says it applies), shown in a table with an explanation of what each column means.
 
+![Details view](assets/demo-2.png)
+
+*The details of an anime and its tags can be viewed*
+
 ## Usage
 
 Use the [deployed webapp](https://ccernusca.github.io/anime-in-abyss/)
@@ -30,6 +38,10 @@ Or:
 4. Click **Details** (top-right) or any marker to reveal that anime's niche score, cover art, and tag breakdown/judgement buttons, scrolling you to its marker.
 5. Click **Show tag breakdown** or **Judgement Details** to see the data behind the score (only one panel shows at a time).
 6. Search again — your previous marker stays put. Click **Search** (top-left) any time to return to the surface and search again, or **Details** to jump back to your latest search.
+
+![search screen](assets/demo-3.png)
+
+*Search screen for entering an anime title*
 
 ## Technologies
 
