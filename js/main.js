@@ -67,8 +67,87 @@ contributionsBtn.addEventListener('click', () => {
   if (opening) judgementDetails.hidden = true;
 });
 
-const MARKER_TOP_AT_SCORE_1 = 150;
-const MARKER_TOP_AT_SCORE_0 = 2200;
+// depth-mapping anchors, given as fractions of the map artwork's native height (2642px @
+// native width 1708px) rather than fixed page px — body's background-size (and thus the
+// map's actual on-screen height) varies by zoom state and viewport (max(<state-px>, 100vw)),
+// so a fixed px anchor would only be correct at one particular render scale. Working in
+// fractions and multiplying by the CURRENT rendered background height (see
+// currentBackgroundHeight()) keeps markers correctly placed regardless of scale.
+const MAP_NATIVE_HEIGHT = 2642;
+const MAP_NATIVE_WIDTH = 1708;
+const MAP_ASPECT = MAP_NATIVE_HEIGHT / MAP_NATIVE_WIDTH;
+// mirrors the background-size base widths in css/style.css for each body zoom-state class
+const BG_STATE_WIDTH_BASE = 1708;
+const BG_STATE_WIDTH_ZOOMED_IN = 6000;
+const BG_STATE_WIDTH_DESCENDING = 1300;
+
+function currentBackgroundHeight() {
+  let stateWidth = BG_STATE_WIDTH_BASE;
+  if (document.body.classList.contains('zoomed-in')) stateWidth = BG_STATE_WIDTH_ZOOMED_IN;
+  else if (document.body.classList.contains('descending')) stateWidth = BG_STATE_WIDTH_DESCENDING;
+  return Math.max(stateWidth, window.innerWidth) * MAP_ASPECT;
+}
+
+// score 0 -> 2328/2642 (deep), 0.25 -> 272/2642, 0.3 -> 125/2642, 1 -> 75/2642 (map ceiling,
+// shallowest spot). A single low-degree polynomial through all 4 points overshoots/dips between
+// them (secant slopes vary wildly in magnitude between segments). Instead this is a piecewise
+// monotone cubic Hermite spline (PCHIP/Fritsch-Carlson), generalized for N anchors: exact
+// through every anchor, strictly decreasing (no dip, no clustering), C1-continuous at each join.
+const MARKER_ANCHOR_SCORES = [0, 0.25, 0.3, 1];
+const MARKER_ANCHOR_FRACTIONS = [2328, 272, 125, 75].map((px) => px / MAP_NATIVE_HEIGHT);
+
+// Fritsch-Carlson monotone tangents: endpoints get the adjacent one-sided secant; interior
+// points get the Fritsch-Butland weighted harmonic mean of their two neighboring secants (or
+// 0 if those secants disagree in sign/vanish, to preserve a local extremum there).
+function monotoneTangents(xs, ys) {
+  const n = xs.length;
+  const h = [];
+  const secants = [];
+  for (let i = 0; i < n - 1; i++) {
+    h.push(xs[i + 1] - xs[i]);
+    secants.push((ys[i + 1] - ys[i]) / h[i]);
+  }
+  const d = new Array(n);
+  d[0] = secants[0];
+  d[n - 1] = secants[n - 2];
+  for (let i = 1; i < n - 1; i++) {
+    const sL = secants[i - 1];
+    const sR = secants[i];
+    if (sL === 0 || sR === 0 || sL < 0 !== sR < 0) {
+      d[i] = 0;
+    } else {
+      const hL = h[i - 1];
+      const hR = h[i];
+      const w1 = 2 * hR + hL;
+      const w2 = hR + 2 * hL;
+      d[i] = (w1 + w2) / (w1 / sL + w2 / sR);
+    }
+  }
+  return d;
+}
+
+const MARKER_TANGENTS = monotoneTangents(MARKER_ANCHOR_SCORES, MARKER_ANCHOR_FRACTIONS);
+
+function hermiteSegment(t, y0, y1, d0, d1, h) {
+  const h00 = 2 * t ** 3 - 3 * t ** 2 + 1;
+  const h10 = t ** 3 - 2 * t ** 2 + t;
+  const h01 = -2 * t ** 3 + 3 * t ** 2;
+  const h11 = t ** 3 - t ** 2;
+  return h00 * y0 + h10 * h * d0 + h01 * y1 + h11 * h * d1;
+}
+
+function markerTopFractionForScore(score) {
+  let i = MARKER_ANCHOR_SCORES.length - 2;
+  for (let k = 0; k < MARKER_ANCHOR_SCORES.length - 1; k++) {
+    if (score <= MARKER_ANCHOR_SCORES[k + 1]) {
+      i = k;
+      break;
+    }
+  }
+  const segH = MARKER_ANCHOR_SCORES[i + 1] - MARKER_ANCHOR_SCORES[i];
+  const t = (score - MARKER_ANCHOR_SCORES[i]) / segH;
+  return hermiteSegment(t, MARKER_ANCHOR_FRACTIONS[i], MARKER_ANCHOR_FRACTIONS[i + 1], MARKER_TANGENTS[i], MARKER_TANGENTS[i + 1], segH);
+}
 
 const ZOOM_TRANSITION_MS = 1400;
 const MARKER_REVEAL_DELAY_MS = ZOOM_TRANSITION_MS;
@@ -92,9 +171,16 @@ function cancelPendingMarkerReveal() {
   document.body.classList.remove('panning');
   // don't leave a completed search without a marker just because the user bailed early
   if (pendingMarkerEl) {
-    pendingMarkerEl.hidden = false;
+    pendingMarkerEl.classList.remove('pending');
     pendingMarkerEl = null;
   }
+}
+
+// the page's scrollable range can be shorter than a raw marker-derived target (e.g. depending
+// on current zoom/panning min-height), and scrollTo silently clamps to it — so any target we
+// compute must be clamped the same way, or waitForScrollEnd's y===target check never converges
+function maxScrollTop() {
+  return Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
 }
 
 function waitForScrollEnd(target, callback) {
@@ -139,7 +225,7 @@ function showResultFor(entry, reveal) {
   if (reveal) {
     resultSection.hidden = false;
     if (entry.markerTop !== undefined) {
-      const target = Math.max(0, entry.markerTop - window.innerHeight / 2);
+      const target = Math.min(Math.max(0, entry.markerTop - window.innerHeight / 2), maxScrollTop());
       window.scrollTo({ top: target, behavior: 'smooth' });
     }
   }
@@ -149,13 +235,12 @@ function showResultFor(entry, reveal) {
 // they persist for the rest of the session (until reload/exit)
 function placeMarker(entry) {
   const clamped = Math.max(0, Math.min(1, entry.score));
-  const top = MARKER_TOP_AT_SCORE_0 - clamped * (MARKER_TOP_AT_SCORE_0 - MARKER_TOP_AT_SCORE_1);
+  const top = markerTopFractionForScore(clamped) * currentBackgroundHeight();
   entry.markerTop = top;
 
   const el = document.createElement('div');
-  el.className = 'abyss-marker';
+  el.className = 'abyss-marker pending';
   el.style.top = `${top}px`;
-  el.hidden = true;
   if (entry.coverUrl) {
     el.style.backgroundImage = `url('${entry.coverUrl}')`;
   }
@@ -167,35 +252,35 @@ function placeMarker(entry) {
   pendingMarkerEl = el;
   markerRevealTimeoutId = setTimeout(() => {
     markerRevealTimeoutId = null;
-    const target = Math.max(0, top - window.innerHeight / 2);
+    const target = Math.min(Math.max(0, top - window.innerHeight / 2), maxScrollTop());
     window.scrollTo({ top: target, behavior: 'smooth' });
     waitForScrollEnd(target, () => {
       pendingMarkerEl = null;
-      el.hidden = false;
+      el.classList.remove('pending');
     });
   }, MARKER_REVEAL_DELAY_MS);
 }
 
 const MAX_TAGS = 10;
 
-// score = sum over the anime's 10 most-accepted tags that also appear in the
-// weights table, of (tag weight)^2 * (this anime's community acceptance of the tag, 0-1)
+// score = avg over the anime's 10 most-accepted tags, of (tag weight) * (this anime's
+// community acceptance of the tag, 0-1); tags absent from the weights table use weight 0
 function computeNicheScore(animeTags, weightTags) {
   const weightByName = new Map(weightTags.map((t) => [t.name, t.score]));
   const topTags = [...animeTags].sort((a, b) => b.rank - a.rank).slice(0, MAX_TAGS);
   const contributions = [];
-  let score = 0;
+  let sum = 0;
 
   for (const tag of topTags) {
-    const weight = weightByName.get(tag.name);
-    if (weight === undefined) continue;
+    const weight = weightByName.get(tag.name) || 0;
     const acceptance = tag.rank / 100;
-    const contribution = weight * weight * acceptance;
-    score += contribution;
+    const contribution = weight * acceptance;
+    sum += contribution;
     contributions.push({ name: tag.name, weight, acceptance, contribution });
   }
 
   contributions.sort((a, b) => b.contribution - a.contribution);
+  const score = topTags.length ? sum / topTags.length : 0;
   return { score, contributions };
 }
 
@@ -318,7 +403,6 @@ function renderJudgementDetails(tags) {
     const row = document.createElement('tr');
     row.innerHTML = `
       <td>${tag.name}</td>
-      <td>${tag.fraction.toFixed(4)}</td>
       <td>${tag.avgAcceptance.toFixed(4)}</td>
       <td>${tag.score.toFixed(4)}</td>
     `;

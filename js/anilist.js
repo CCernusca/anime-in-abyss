@@ -1,7 +1,7 @@
 const ANILIST_ENDPOINT = 'https://graphql.anilist.co';
 const TOP_N = 100;
 const PER_PAGE = 50;
-const CACHE_KEY = 'aia_tag_judgement_v2';
+const CACHE_KEY = 'aia_tag_judgement_v3';
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 
 const TOP_ANIME_QUERY = `
@@ -60,30 +60,24 @@ async function fetchTopAnime() {
   return pages.flatMap((p) => p.data.Page.media).slice(0, TOP_N);
 }
 
-// score = (fraction of anime carrying the tag) * (avg community rank of the tag)
-// high score = tag is both common AND highly relevant among popular anime (mainstream signal)
+// score = avg community rank of the tag across ALL top-100 anime (0 for anime missing the tag)
+// high score = tag is highly relevant among popular anime (mainstream signal)
 function computeTagStats(mediaList) {
-  const totals = new Map();
+  const rankSums = new Map();
 
   for (const media of mediaList) {
     for (const tag of media.tags || []) {
-      const entry = totals.get(tag.name) || { count: 0, rankSum: 0 };
-      entry.count += 1;
-      entry.rankSum += tag.rank;
-      totals.set(tag.name, entry);
+      rankSums.set(tag.name, (rankSums.get(tag.name) || 0) + tag.rank);
     }
   }
 
   const sampleSize = mediaList.length;
-  const stats = Array.from(totals.entries()).map(([name, { count, rankSum }]) => {
-    const fraction = count / sampleSize;
-    const avgAcceptance = rankSum / count / 100;
+  const stats = Array.from(rankSums.entries()).map(([name, rankSum]) => {
+    const avgAcceptance = rankSum / sampleSize / 100;
     return {
       name,
-      count,
-      fraction,
       avgAcceptance,
-      score: fraction * avgAcceptance,
+      score: avgAcceptance,
     };
   });
 

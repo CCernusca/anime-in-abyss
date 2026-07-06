@@ -73,6 +73,13 @@ body.descending {
   cursor: pointer;
 }
 
+/* stays in layout (so page scrollHeight includes it, allowing scroll-to-marker)
+   while visually absent until placeMarker's reveal step flips this off */
+.abyss-marker.pending {
+  opacity: 0;
+  pointer-events: none;
+}
+
 body.zoomed-in .abyss-marker,
 body.panning .abyss-marker {
   display: none;
